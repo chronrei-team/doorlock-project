@@ -2,10 +2,12 @@
 #include "push_button.cpp"
 #include "joystick.cpp"
 #include "motor.cpp"
+#include "password_manager.cpp"
 
 #define ACTIVE_LOW 0
 #define DEBOUNCING_DELAY 50ms
 #define DOORLOCK_DURATION 3s
+#define AUTO_CLOSE_DURATION 30s
 
 
 // push button
@@ -29,33 +31,65 @@ Motor motor(MOTOR_A_PWM_PIN, MOTOR_A_ROTATE_PIN);
 
 //-----------------------------------------------
 
-char password = 0;
+
+enum class DoorlockState {
+    Open, // 열림
+    Close, // 닫힘
+    Input, // 비밀번호 입력
+    OpenAction, // 열리는 중
+    CloseAction, // 닫히는 중
+};
 
 EventQueue event(EVENTS_EVENT_SIZE * 32);
 Timer motorTimer;
+Timer autoCloseTimer;
 
-void doorlookActionComplete() {
-    if (motorTimer.elapsed_time() > DOORLOCK_DURATION - 0.1s) {
-        motorTimer.stop();
-    }
-}
+PasswordManager passwordManager;
+DoorlockState doorlockState = DoorlockState::Close;
 
-void doorlockOpen() {
-    motor.backward();
-    motorTimer.reset();
-    event.call_in(DOORLOCK_DURATION, doorlookActionComplete);
-
-    // 열리는 소리 추가
-    
+bool doorlookActionCompleted() {
+    return motorTimer.elapsed_time() > DOORLOCK_DURATION - 0.1s;
 }
 
 void doorlockClose() {
+    doorlockState = DoorlockState::CloseAction;
     motor.forward();
     motorTimer.reset();
-    event.call_in(DOORLOCK_DURATION, doorlookActionComplete);
+
+    // 3초간 정회전 후 멈춤
+    event.call_in(DOORLOCK_DURATION, [] {
+        if (doorlookActionCompleted()) {
+            motorTimer.stop();
+            doorlockState = DoorlockState::Close;
+        }
+    });
 
     // 닫히는 소리 추가
     
+}
+
+void doorlockOpen() {
+    doorlockState = DoorlockState::OpenAction;
+    motor.backward();
+    motorTimer.reset();
+
+    // 3초간 역회전 후 멈춤
+    event.call_in(DOORLOCK_DURATION, [] {
+        if (doorlookActionCompleted()) {
+            motorTimer.stop();
+            doorlockState = DoorlockState::Open;
+        }
+    });
+
+    // 열리는 소리 추가
+    
+    // 30초뒤 자동 닫힘
+    autoCloseTimer.reset();
+    event.call_in(AUTO_CLOSE_DURATION, [] {
+        if (autoCloseTimer.elapsed_time() > AUTO_CLOSE_DURATION - 0.1s) {
+            doorlockClose();
+        }
+    });
 }
 
 
@@ -64,6 +98,7 @@ void setup() {
     eventWorker.start(callback(&event, &EventQueue::dispatch_forever));
 
     motorTimer.start();
+    autoCloseTimer.start();
 
     // record button falling edge
     event.call_every(DEBOUNCING_DELAY, callback(&firstBtn, &PushButton::detectFallingEdge));
@@ -90,6 +125,7 @@ void debug(JSEdge joystickMovement) {
 // main() runs in its own thread in the OS
 int main()
 {
+    setup();
     while (true) {
         auto joystickMovement = joyStick.lastTriggeredEdge();
 
