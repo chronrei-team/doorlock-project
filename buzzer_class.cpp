@@ -6,6 +6,8 @@
 class Buzzer {
 private:
     PwmOut _buzzer;
+    Thread _buzzerThread;
+    EventQueue _queue {64}; // _queue(EVENTS_EVENT_SIZE * 64)와 같음.
 
     enum class Note {
         Note_c = 0,
@@ -29,60 +31,63 @@ private:
         1912  // C' (높은 도)
     };
 
+    void stop() {
+        _buzzer = 0;
+    }
+
     void playSound(Note note, int duration_ms) {
         int period_us = note_periods[static_cast<int>(note)];
         _buzzer.period_us(period_us);
         _buzzer = 0.5;
 
-        std::chrono::milliseconds duration(duration_ms);
-        ThisThread::sleep_for(duration);
-
-        _buzzer = 0;
+        // 이벤트 큐로 부저 끄기
+        _queue.call_in(std::chrono::milliseconds(duration_ms), callback(this, &Buzzer::stop));
     }
 
 public:
     Buzzer(PinName pin) : _buzzer(pin) {
         _buzzer = 0;
+        _buzzerThread.start(callback(&_queue, &EventQueue::dispatch_forever));
+    }
+
+    // 매개변수 : 음, 동작 시간, 지연 시간
+    void playSoundAsync(Note note, int duration_ms, int delay_ms) {
+        _queue.call_in(std::chrono::milliseconds(delay_ms), callback(this, &Buzzer::playSound), note, duration_ms);
     }
 
     // 문 열림: 미 솔 도
     void doorOpen() {
-        playSound(Note::Note_e, 100);
-        ThisThread::sleep_for(50ms);
-        playSound(Note::Note_g, 100);
-        ThisThread::sleep_for(50ms);
-        playSound(Note::Note_C, 100);
+        playSoundAsync(Note::Note_e, 100, 0);
+        playSoundAsync(Note::Note_g, 100, 150);
+        playSoundAsync(Note::Note_C, 100, 300);
     }
 
     // 문 닫힘: 도 솔 미
     void doorClose() {
-        playSound(Note::Note_C, 100);
-        ThisThread::sleep_for(50ms);
-        playSound(Note::Note_g, 100);
-        ThisThread::sleep_for(50ms);
-        playSound(Note::Note_e, 100);
+        playSoundAsync(Note::Note_C, 100, 0);
+        playSoundAsync(Note::Note_g, 100, 150);
+        playSoundAsync(Note::Note_e, 100, 300);
     }
 
     // 비밀번호 입력: 라
     void passwordInput() {
-        playSound(Note::Note_a, 150);
+        playSoundAsync(Note::Note_a, 150, 0);
     }
 
     // 비밀번호 입력 > 일반 모드 : 레
     void modeChangeNormal() {
-        playSound(Note::Note_d, 400);
+        playSoundAsync(Note::Note_d, 400, 0);
     }
 
     // 일반 > 비밀번호 입력 모드 : 시
-    void modeChangeInputl() {
-        playSound(Note::Note_b, 400);
+    void modeChangeInput() {
+        playSoundAsync(Note::Note_b, 400, 0);
     }
 
     // 입력 실패: 도 도
     void inputFailed() {
-        playSound(Note::Note_c, 100);
-        ThisThread::sleep_for(100ms);
-        playSound(Note::Note_c, 100);
+        playSoundAsync(Note::Note_c, 100, 0);
+        playSoundAsync(Note::Note_c, 100, 150);
     }
 };
 
