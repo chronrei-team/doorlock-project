@@ -3,6 +3,7 @@
 #include "joystick.cpp"
 #include "motor.cpp"
 #include "password_manager.cpp"
+#include "buzzer_class.cpp"
 
 #define ACTIVE_LOW 0
 #define DEBOUNCING_DELAY 50ms
@@ -28,6 +29,10 @@ JoyStick joyStick(JS_X_PIN, JS_Y_PIN);
 #define MOTOR_A_PWM_PIN PA_7
 #define MOTOR_A_ROTATE_PIN PC_8
 Motor motor(MOTOR_A_PWM_PIN, MOTOR_A_ROTATE_PIN);
+
+// buzzer
+#define BUZZER_PIN      PC_9
+Buzzer buzzer(BUZZER_PIN);
 
 //-----------------------------------------------
 
@@ -65,6 +70,7 @@ void doorlockClose() {
     });
 
     // 닫히는 소리 추가
+    buzzer.doorClose();
     
 }
 
@@ -82,6 +88,7 @@ void doorlockOpen() {
     });
 
     // 열리는 소리 추가
+    buzzer.doorOpen();
     
     // 30초뒤 자동 닫힘
     autoCloseTimer.reset();
@@ -112,8 +119,14 @@ void setup() {
 
 
 void debug(JSEdge joystickMovement) {
-    if (firstBtn.fallingEdgeTriggered()) printf("첫 번째 버튼 눌러짐\r\n");
-    if (secondBtn.fallingEdgeTriggered()) printf("두 번째 버튼 눌러짐\r\n");
+    if (firstBtn.fallingEdgeTriggered()) {
+        printf("첫 번째 버튼 눌러짐\r\n");
+        buzzer.doorOpen();
+    } 
+    if (secondBtn.fallingEdgeTriggered()) {
+        printf("두 번째 버튼 눌러짐\r\n");
+        buzzer.doorClose();
+    } 
     if (thirdBtn.fallingEdgeTriggered()) printf("세 번째 버튼 눌러짐\r\n");
 
     if (joystickMovement.LeftRight == JSLoc::Left) printf("조이스틱 왼쪽 움직임\r\n");
