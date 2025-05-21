@@ -3,6 +3,7 @@
 #include "joystick.cpp"
 #include "motor.cpp"
 #include "password_manager.cpp"
+#include <cstdio>
 
 #define ACTIVE_LOW 0
 #define DEBOUNCING_DELAY 50ms
@@ -48,10 +49,12 @@ PasswordManager passwordManager;
 DoorlockState doorlockState = DoorlockState::Close;
 
 bool doorlookActionCompleted() {
+    printf("모터 시간 : %dms\r\n", (int)(motorTimer.elapsed_time().count() / 1000));
     return motorTimer.elapsed_time() > DOORLOCK_DURATION - 0.1s;
 }
 
 void doorlockClose() {
+    printf("도어락 닫힘\r\n");
     doorlockState = DoorlockState::CloseAction;
     motor.forward();
     motorTimer.reset();
@@ -69,6 +72,8 @@ void doorlockClose() {
 }
 
 void doorlockOpen() {
+    printf("도어락 오픈\r\n");
+
     doorlockState = DoorlockState::OpenAction;
     motor.backward();
     motorTimer.reset();
@@ -87,6 +92,7 @@ void doorlockOpen() {
     autoCloseTimer.reset();
     event.call_in(AUTO_CLOSE_DURATION, [] {
         if (autoCloseTimer.elapsed_time() > AUTO_CLOSE_DURATION - 0.1s) {
+            printf("30초 경과\r\n");
             doorlockClose();
         }
     });
@@ -96,7 +102,7 @@ void doorlockSliderOpen() {
     doorlockState = DoorlockState::InputOnClose;
     passwordManager.resetInput();
     passwordManager.resetCursor();
-
+    printf("슬라이더 오픈\r\n");
     // oled 제어
 }
 
@@ -104,6 +110,7 @@ void doorlockSliderClose() {
     doorlockState = DoorlockState::Close;
     passwordManager.resetInput();
     passwordManager.resetCursor();
+    printf("슬라이더 클로즈\r\n");
 
     // oled 제어
 }
@@ -228,6 +235,7 @@ int main()
             if (thirdBtnEdgeTriggered) doorlockClose();
         }
         
+        fflush(stdout);
         ThisThread::sleep_for(10ms);
     }
 }
