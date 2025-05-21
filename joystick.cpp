@@ -50,9 +50,9 @@ private:
 
     void edgeSetting() {
         if (leftRightPrev != X) leftRightEdge = X;
-        if (upDownEdge != Y) upDownEdge = Y;
+        if (upDownPrev != Y) upDownEdge = Y;
         leftRightPrev = X;
-        upDownEdge = Y;
+        upDownPrev = Y;
     }
 
 public:
