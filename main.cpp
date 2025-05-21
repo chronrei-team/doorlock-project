@@ -4,6 +4,7 @@
 #include "motor.cpp"
 #include "password_manager.cpp"
 #include "buzzer_class.cpp"
+#include <cstdio>
 
 #define ACTIVE_LOW 0
 #define DEBOUNCING_DELAY 50ms
@@ -40,7 +41,7 @@ Buzzer buzzer(BUZZER_PIN);
 enum class DoorlockState {
     Open, // 열림
     Close, // 닫힘
-    Input, // 비밀번호 입력
+    InputOnClose, // 비밀번호 입력
     OpenAction, // 열리는 중
     CloseAction, // 닫히는 중
 };
@@ -53,10 +54,12 @@ PasswordManager passwordManager;
 DoorlockState doorlockState = DoorlockState::Close;
 
 bool doorlookActionCompleted() {
+    printf("모터 시간 : %dms\r\n", (int)(motorTimer.elapsed_time().count() / 1000));
     return motorTimer.elapsed_time() > DOORLOCK_DURATION - 0.1s;
 }
 
 void doorlockClose() {
+    printf("도어락 닫힘\r\n");
     doorlockState = DoorlockState::CloseAction;
     motor.forward();
     motorTimer.reset();
@@ -64,7 +67,7 @@ void doorlockClose() {
     // 3초간 정회전 후 멈춤
     event.call_in(DOORLOCK_DURATION, [] {
         if (doorlookActionCompleted()) {
-            motorTimer.stop();
+            motor.stop();
             doorlockState = DoorlockState::Close;
         }
     });
@@ -75,6 +78,8 @@ void doorlockClose() {
 }
 
 void doorlockOpen() {
+    printf("도어락 오픈\r\n");
+
     doorlockState = DoorlockState::OpenAction;
     motor.backward();
     motorTimer.reset();
@@ -82,7 +87,7 @@ void doorlockOpen() {
     // 3초간 역회전 후 멈춤
     event.call_in(DOORLOCK_DURATION, [] {
         if (doorlookActionCompleted()) {
-            motorTimer.stop();
+            motor.stop();
             doorlockState = DoorlockState::Open;
         }
     });
@@ -94,9 +99,76 @@ void doorlockOpen() {
     autoCloseTimer.reset();
     event.call_in(AUTO_CLOSE_DURATION, [] {
         if (autoCloseTimer.elapsed_time() > AUTO_CLOSE_DURATION - 0.1s) {
+            printf("30초 경과\r\n");
             doorlockClose();
         }
     });
+}
+
+void doorlockSliderOpen() {
+    doorlockState = DoorlockState::InputOnClose;
+    passwordManager.resetInput();
+    passwordManager.resetCursor();
+    printf("슬라이더 오픈\r\n");
+    // oled 제어
+}
+
+void doorlockSliderClose() {
+    doorlockState = DoorlockState::Close;
+    passwordManager.resetInput();
+    passwordManager.resetCursor();
+    printf("슬라이더 클로즈\r\n");
+
+    // oled 제어
+}
+
+void authorization() {
+    // 패스워드 일치
+    if (passwordManager.authorization()) {
+        doorlockOpen();
+        printf("비밀번호 통과\r\n");
+        
+        // 부저 소리 출력
+        // oled 제어
+    }
+    // 패스워드 불일치
+    else {
+        printf("비밀번호 실패\r\n");
+
+        // 부저 소리 출력
+        // oled 제어
+    }
+}
+
+void cursorLeft() {
+    int cursor = passwordManager.cursorLeft();
+    printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
+    // 소리
+    // oled
+}
+
+void cursorRight() {
+    int cursor = passwordManager.cursorRight();
+    printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
+
+    // 소리
+    // oled
+}
+
+void inputPlus() {
+    int pw = passwordManager.inputPlus();
+    printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
+
+    // 소리
+    // oled
+}
+
+void inputMinus() {
+    int pw = passwordManager.inputMinus();
+    printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
+
+    // 소리
+    // oled
 }
 
 
@@ -135,14 +207,49 @@ void debug(JSEdge joystickMovement) {
     if (joystickMovement.UpDown == JSLoc::Down) printf("조이스틱 아래로 움직임\r\n");
 }
 
+/*
+    추가기능으로..
+    1. 비밀번호 재설정?
+    2. 일정 횟수 틀리면 보안 알람?
+*/
+
 // main() runs in its own thread in the OS
 int main()
 {
     setup();
     while (true) {
         auto joystickMovement = joyStick.lastTriggeredEdge();
+        bool firstBtnEdgeTriggered = firstBtn.fallingEdgeTriggered();
+        bool secondBtnEdgeTriggered = secondBtn.fallingEdgeTriggered();
+        bool thirdBtnEdgeTriggered = thirdBtn.fallingEdgeTriggered();
 
-        debug(joystickMovement);
+        if (doorlockState == DoorlockState::Close) {
+            // 세 번째 버튼 누르면 수동 열기
+            if (thirdBtnEdgeTriggered) doorlockOpen();
+            // 두 번째 버튼을 누르면 비밀번호 입력 준비 (도어락의 슬라이더를 위로 올리는 효과)
+            else if (secondBtnEdgeTriggered) doorlockSliderOpen();
+        }
+        else if (doorlockState == DoorlockState::InputOnClose) {
+            // 세 번째 버튼 누르면 수동 열기
+            if (thirdBtnEdgeTriggered) doorlockOpen();
+            // 두 번째 버튼 누르면 비밀번호 입력 취소 (도어락의 슬라이더를 닫는 효과)
+            else if (secondBtnEdgeTriggered) doorlockSliderClose();
+            // 첫 번째 버튼 누르면 비밀번호 입력 확인
+            else if (firstBtnEdgeTriggered) authorization();
+
+            // 패스워드 조작
+            if (joystickMovement.LeftRight == JSLoc::Left) cursorLeft();
+            else if (joystickMovement.LeftRight == JSLoc::Right) cursorRight();
+            else if (joystickMovement.UpDown == JSLoc::Up) inputPlus();
+            else if (joystickMovement.UpDown == JSLoc::Down) inputMinus();
+        }
+        else if (doorlockState == DoorlockState::Open) {
+            // 세 번째 버튼 누르면 수동 닫기
+            if (thirdBtnEdgeTriggered) doorlockClose();
+        }
+        
+        fflush(stdout);
+        ThisThread::sleep_for(10ms);
     }
 }
 
