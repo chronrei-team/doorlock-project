@@ -4,6 +4,7 @@
 #include "motor.cpp"
 #include "password_manager.cpp"
 #include "buzzer_class.cpp"
+#include "DHT22.h"
 #include <cstdio>
 
 #define ACTIVE_LOW 0
@@ -35,6 +36,10 @@ Motor motor(MOTOR_A_PWM_PIN, MOTOR_A_ROTATE_PIN);
 #define BUZZER_PIN      PC_9
 Buzzer buzzer(BUZZER_PIN);
 
+// DHT22
+#define DHT22_DATA_PIN  PB_2
+DHT22 dht22(DHT22_DATA_PIN);
+
 //-----------------------------------------------
 
 
@@ -52,6 +57,26 @@ Timer autoCloseTimer;
 
 PasswordManager passwordManager;
 DoorlockState doorlockState = DoorlockState::Close;
+
+void playSounds(const Note* notes, const int* durations, size_t count, size_t index = 0) {
+    if (index >= count) return;
+
+    // 현재 음 재생
+    event.call([=] {
+        buzzer.play(notes[index], durations[index]);
+    });
+
+    // 다음 음 재생 예약 (음 길이 + 간격 고려)
+    int delay = durations[index] + 50; // 50ms 간격
+    event.call_in(std::chrono::milliseconds(delay), [=] {
+        playSounds(notes, durations, count, index + 1);
+    });
+}
+
+void playSingleSound(Note note, int duration) {
+    playSounds(&note, &duration, 1);
+}
+
 
 bool doorlookActionCompleted() {
     printf("모터 시간 : %dms\r\n", (int)(motorTimer.elapsed_time().count() / 1000));
@@ -73,7 +98,9 @@ void doorlockClose() {
     });
 
     // 닫히는 소리 추가
-    buzzer.doorClose();
+    Note melody[] = { Note::Note_C, Note::Note_a, Note::Note_f };
+    int durations[] = { 300, 300, 300 };
+    playSounds(melody, durations, 3);
     
 }
 
@@ -93,7 +120,9 @@ void doorlockOpen() {
     });
 
     // 열리는 소리 추가
-    buzzer.doorOpen();
+    Note melody[] = { Note::Note_e, Note::Note_g, Note::Note_C };
+    int durations[] = { 300, 300, 300 };
+    playSounds(melody, durations, 3);
     
     // 30초뒤 자동 닫힘
     autoCloseTimer.reset();
@@ -129,6 +158,9 @@ void authorization() {
         printf("비밀번호 통과\r\n");
         
         // 부저 소리 출력
+        Note melody[] = { Note::Note_g, Note::Note_C};
+        int durations[] = { 300, 300 };
+        playSounds(melody, durations, 2);
         // oled 제어
     }
     // 패스워드 불일치
@@ -136,6 +168,9 @@ void authorization() {
         printf("비밀번호 실패\r\n");
 
         // 부저 소리 출력
+        Note melody[] = { Note::Note_f, Note::Note_f};
+        int durations[] = { 300, 300 };
+        playSounds(melody, durations, 2);
         // oled 제어
     }
 }
@@ -143,7 +178,8 @@ void authorization() {
 void cursorLeft() {
     int cursor = passwordManager.cursorLeft();
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
-    // 소리
+    // 단일음 출력
+    playSingleSound(Note::Note_e, 300);
     // oled
 }
 
@@ -151,7 +187,8 @@ void cursorRight() {
     int cursor = passwordManager.cursorRight();
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
 
-    // 소리
+    // 단일음 출력
+    playSingleSound(Note::Note_e, 300);
     // oled
 }
 
@@ -159,7 +196,8 @@ void inputPlus() {
     int pw = passwordManager.inputPlus();
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
-    // 소리
+    // 단일음 출력
+    playSingleSound(Note::Note_g, 300);
     // oled
 }
 
@@ -167,10 +205,20 @@ void inputMinus() {
     int pw = passwordManager.inputMinus();
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
-    // 소리
+    // 단일음 출력
+    playSingleSound(Note::Note_g, 300);
     // oled
 }
 
+void getTempHumid() {
+    if (dht22.sample()) {
+        float temperature = (float)dht22.getTemperature() / 10.0f; // 소수점 보정
+        float humidity = (float)dht22.getHumidity() / 10.0f;
+        printf("[DHT22] 온도: %.1f°C, 습도: %.1f%%\r\n", temperature, humidity);
+    } else {
+        printf("[DHT22] 센서 측정 실패\r\n");
+    }
+}
 
 void setup() {
     static Thread eventWorker;
@@ -187,17 +235,19 @@ void setup() {
     // record joystick movement
     event.call_every(DEBOUNCING_DELAY, callback(&joyStick, &JoyStick::detectLocation));
 
+    event.call_every(1s, getTempHumid);
+    ThisThread::sleep_for(1000ms);
 }
 
 
 void debug(JSEdge joystickMovement) {
     if (firstBtn.fallingEdgeTriggered()) {
         printf("첫 번째 버튼 눌러짐\r\n");
-        buzzer.doorOpen();
+        
     } 
     if (secondBtn.fallingEdgeTriggered()) {
         printf("두 번째 버튼 눌러짐\r\n");
-        buzzer.doorClose();
+        
     } 
     if (thirdBtn.fallingEdgeTriggered()) printf("세 번째 버튼 눌러짐\r\n");
 
