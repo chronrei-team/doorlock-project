@@ -35,7 +35,7 @@ Motor motor(MOTOR_A_PWM_PIN, MOTOR_A_ROTATE_PIN);
 enum class DoorlockState {
     Open, // 열림
     Close, // 닫힘
-    Input, // 비밀번호 입력
+    InputOnClose, // 비밀번호 입력
     OpenAction, // 열리는 중
     CloseAction, // 닫히는 중
 };
@@ -92,6 +92,71 @@ void doorlockOpen() {
     });
 }
 
+void doorlockSliderOpen() {
+    doorlockState = DoorlockState::InputOnClose;
+    passwordManager.resetInput();
+    passwordManager.resetCursor();
+
+    // oled 제어
+}
+
+void doorlockSliderClose() {
+    doorlockState = DoorlockState::Close;
+    passwordManager.resetInput();
+    passwordManager.resetCursor();
+
+    // oled 제어
+}
+
+void authorization() {
+    // 패스워드 일치
+    if (passwordManager.authorization()) {
+        doorlockOpen();
+        printf("비밀번호 통과\r\n");
+        
+        // 부저 소리 출력
+        // oled 제어
+    }
+    // 패스워드 불일치
+    else {
+        printf("비밀번호 실패\r\n");
+
+        // 부저 소리 출력
+        // oled 제어
+    }
+}
+
+void cursorLeft() {
+    int cursor = passwordManager.cursorLeft();
+    printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
+    // 소리
+    // oled
+}
+
+void cursorRight() {
+    int cursor = passwordManager.cursorRight();
+    printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
+
+    // 소리
+    // oled
+}
+
+void inputPlus() {
+    int pw = passwordManager.inputPlus();
+    printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
+
+    // 소리
+    // oled
+}
+
+void inputMinus() {
+    int pw = passwordManager.inputMinus();
+    printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
+
+    // 소리
+    // oled
+}
+
 
 void setup() {
     static Thread eventWorker;
@@ -122,6 +187,12 @@ void debug(JSEdge joystickMovement) {
     if (joystickMovement.UpDown == JSLoc::Down) printf("조이스틱 아래로 움직임\r\n");
 }
 
+/*
+    추가기능으로..
+    1. 비밀번호 재설정?
+    2. 일정 횟수 틀리면 보안 알람?
+*/
+
 // main() runs in its own thread in the OS
 int main()
 {
@@ -129,7 +200,32 @@ int main()
     while (true) {
         auto joystickMovement = joyStick.lastTriggeredEdge();
 
-        debug(joystickMovement);
+        if (doorlockState == DoorlockState::Close) {
+            // 세 번째 버튼 누르면 수동 열기
+            if (thirdBtn.fallingEdgeTriggered()) doorlockOpen();
+            // 두 번째 버튼을 누르면 비밀번호 입력 준비 (도어락의 슬라이더를 위로 올리는 효과)
+            else if (secondBtn.fallingEdgeTriggered()) doorlockSliderOpen();
+        }
+        else if (doorlockState == DoorlockState::InputOnClose) {
+            // 세 번째 버튼 누르면 수동 열기
+            if (thirdBtn.fallingEdgeTriggered()) doorlockOpen();
+            // 두 번째 버튼 누르면 비밀번호 입력 취소 (도어락의 슬라이더를 닫는 효과)
+            else if (secondBtn.fallingEdgeTriggered()) doorlockSliderClose();
+            // 첫 번째 버튼 누르면 비밀번호 입력 확인
+            else if (firstBtn.fallingEdgeTriggered()) authorization();
+
+            // 패스워드 조작
+            if (joystickMovement.LeftRight == JSLoc::Left) cursorLeft();
+            else if (joystickMovement.LeftRight == JSLoc::Right) cursorRight();
+            else if (joystickMovement.UpDown == JSLoc::Up) inputPlus();
+            else if (joystickMovement.UpDown == JSLoc::Down) inputMinus();
+        }
+        else if (doorlockState == DoorlockState::Open) {
+            // 세 번째 버튼 누르면 수동 닫기
+            if (thirdBtn.fallingEdgeTriggered()) doorlockClose();
+        }
+        
+        ThisThread::sleep_for(10ms);
     }
 }
 
