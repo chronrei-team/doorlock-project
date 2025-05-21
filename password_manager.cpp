@@ -30,8 +30,8 @@ public:
             result = true;
         }
 
-        passwordBuffer = 0;
-
+        resetCursor();
+        resetInput();
         return result;
     }
 
