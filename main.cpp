@@ -59,7 +59,7 @@ void doorlockClose() {
     // 3초간 정회전 후 멈춤
     event.call_in(DOORLOCK_DURATION, [] {
         if (doorlookActionCompleted()) {
-            motorTimer.stop();
+            motor.stop();
             doorlockState = DoorlockState::Close;
         }
     });
@@ -76,7 +76,7 @@ void doorlockOpen() {
     // 3초간 역회전 후 멈춤
     event.call_in(DOORLOCK_DURATION, [] {
         if (doorlookActionCompleted()) {
-            motorTimer.stop();
+            motor.stop();
             doorlockState = DoorlockState::Open;
         }
     });
@@ -199,20 +199,23 @@ int main()
     setup();
     while (true) {
         auto joystickMovement = joyStick.lastTriggeredEdge();
+        bool firstBtnEdgeTriggered = firstBtn.fallingEdgeTriggered();
+        bool secondBtnEdgeTriggered = secondBtn.fallingEdgeTriggered();
+        bool thirdBtnEdgeTriggered = thirdBtn.fallingEdgeTriggered();
 
         if (doorlockState == DoorlockState::Close) {
             // 세 번째 버튼 누르면 수동 열기
-            if (thirdBtn.fallingEdgeTriggered()) doorlockOpen();
+            if (thirdBtnEdgeTriggered) doorlockOpen();
             // 두 번째 버튼을 누르면 비밀번호 입력 준비 (도어락의 슬라이더를 위로 올리는 효과)
-            else if (secondBtn.fallingEdgeTriggered()) doorlockSliderOpen();
+            else if (secondBtnEdgeTriggered) doorlockSliderOpen();
         }
         else if (doorlockState == DoorlockState::InputOnClose) {
             // 세 번째 버튼 누르면 수동 열기
-            if (thirdBtn.fallingEdgeTriggered()) doorlockOpen();
+            if (thirdBtnEdgeTriggered) doorlockOpen();
             // 두 번째 버튼 누르면 비밀번호 입력 취소 (도어락의 슬라이더를 닫는 효과)
-            else if (secondBtn.fallingEdgeTriggered()) doorlockSliderClose();
+            else if (secondBtnEdgeTriggered) doorlockSliderClose();
             // 첫 번째 버튼 누르면 비밀번호 입력 확인
-            else if (firstBtn.fallingEdgeTriggered()) authorization();
+            else if (firstBtnEdgeTriggered) authorization();
 
             // 패스워드 조작
             if (joystickMovement.LeftRight == JSLoc::Left) cursorLeft();
@@ -222,7 +225,7 @@ int main()
         }
         else if (doorlockState == DoorlockState::Open) {
             // 세 번째 버튼 누르면 수동 닫기
-            if (thirdBtn.fallingEdgeTriggered()) doorlockClose();
+            if (thirdBtnEdgeTriggered) doorlockClose();
         }
         
         ThisThread::sleep_for(10ms);
