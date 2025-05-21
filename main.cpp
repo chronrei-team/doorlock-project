@@ -182,7 +182,7 @@ void defaultDisplay() {
     if (doorlockState == DoorlockState::Close) {
         oled.defaultDisplay(true, 25.5, 70);
     }
-    else {
+    else if (doorlockState == DoorlockState::Open) {
         oled.defaultDisplay(false, 25.5, 70);
     }
 }
@@ -262,7 +262,7 @@ int main()
         }
         
         fflush(stdout);
-        ThisThread::sleep_for(10ms);
+        ThisThread::sleep_for(100ms);
     }
 }
 
