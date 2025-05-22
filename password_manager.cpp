@@ -10,7 +10,7 @@ namespace {
 
 class PasswordManager {
 private:
-    int password = 0;
+    int password = 1218;
     int passwordBuffer = 0;
     char cursor = 1;
 
@@ -30,8 +30,6 @@ public:
             result = true;
         }
 
-        resetCursor();
-        resetInput();
         return result;
     }
 

@@ -49,6 +49,7 @@ enum class DoorlockState {
     Open, // 열림
     Close, // 닫힘
     InputOnClose, // 비밀번호 입력
+    PasswordFail, // 비밀번호 실패
     OpenAction, // 열리는 중
     CloseAction, // 닫히는 중
 };
@@ -79,6 +80,8 @@ void playSingleSound(Note note, int duration) {
     playSounds(&note, &duration, 1);
 }
 
+// oled
+DoorlockOled oled(&event);
 
 bool doorlookActionCompleted() {
     printf("모터 시간 : %dms\r\n", (int)(motorTimer.elapsed_time().count() / 1000));
@@ -90,6 +93,8 @@ void doorlockClose() {
     doorlockState = DoorlockState::CloseAction;
     motor.forward();
     motorTimer.reset();
+    autoCloseTimer.reset();
+    oled.closingDisplay();
 
     // 3초간 정회전 후 멈춤
     event.call_in(DOORLOCK_DURATION, [] {
@@ -110,6 +115,7 @@ void doorlockOpen() {
     doorlockState = DoorlockState::OpenAction;
     motor.backward();
     motorTimer.reset();
+    oled.openingDisplay();
 
     // 3초간 역회전 후 멈춤
     event.call_in(DOORLOCK_DURATION, [] {
@@ -140,6 +146,7 @@ void doorlockSliderOpen() {
     doorlockState = DoorlockState::InputOnClose;
     passwordManager.resetInput();
     passwordManager.resetCursor();
+    oled.passwordDisplay(passwordManager.getInput(), passwordManager.getCursor(), true, false);
     printf("슬라이더 오픈\r\n");
     // 부저
     buzzer.play(Note::Note_c, 300, &event);
@@ -159,8 +166,9 @@ void doorlockSliderClose() {
 void authorization() {
     // 패스워드 일치
     if (passwordManager.authorization()) {
+        passwordManager.resetCursor();
+        passwordManager.resetInput();
         doorlockOpen();
-        printf("비밀번호 통과\r\n");
         
         // 부저 소리 출력
         buzzer.passSuccSound(&event);
@@ -168,11 +176,13 @@ void authorization() {
     }
     // 패스워드 불일치
     else {
-        printf("비밀번호 실패\r\n");
+        doorlockState = DoorlockState::PasswordFail;
 
         // 부저 소리 출력
         buzzer.passFailSound(&event);
         // oled 제어
+        auto aniDelay = oled.passwordFailDisplay(passwordManager.getInput());
+        event.call_in(aniDelay, doorlockSliderOpen);
     }
 }
 
@@ -182,6 +192,7 @@ void cursorLeft() {
     // 단일음 출력
     buzzer.play(Note::Note_e, 300, &event);
     // oled
+    oled.passwordDisplay(passwordManager.getInput(), cursor);
 }
 
 void cursorRight() {
@@ -191,6 +202,7 @@ void cursorRight() {
     // 단일음 출력
     buzzer.play(Note::Note_e, 300, &event);
     // oled
+    oled.passwordDisplay(passwordManager.getInput(), cursor);
 }
 
 void inputPlus() {
@@ -200,6 +212,7 @@ void inputPlus() {
     // 단일음 출력
     buzzer.play(Note::Note_g, 300, &event);
     // oled
+    oled.passwordDisplay(pw, passwordManager.getCursor(), true, false);
 }
 
 void inputMinus() {
@@ -209,6 +222,7 @@ void inputMinus() {
     // 단일음 출력
     buzzer.play(Note::Note_g, 300, &event);
     // oled
+    oled.passwordDisplay(pw, passwordManager.getCursor(), true, false);
 }
 
 void getTempHumid() {
@@ -218,6 +232,15 @@ void getTempHumid() {
         printf("[DHT22] 온도: %.1f°C, 습도: %.1f%%\r\n", temperature, humidity);
     } else {
         printf("[DHT22] 센서 측정 실패\r\n");
+    }
+}
+
+void defaultDisplay() {
+    if (doorlockState == DoorlockState::Close) {
+        oled.defaultDisplay(true, 25.5, 70);
+    }
+    else if (doorlockState == DoorlockState::Open) {
+        oled.defaultDisplay(false, 25.5, 70);
     }
 }
 
@@ -237,7 +260,8 @@ void setup() {
     event.call_every(DEBOUNCING_DELAY, callback(&joyStick, &JoyStick::detectLocation));
 
     event.call_every(1s, getTempHumid);
-    ThisThread::sleep_for(1000ms);
+    // sensor init delay
+    ThisThread::sleep_for(1s);
 }
 
 
@@ -275,6 +299,7 @@ int main()
         bool thirdBtnEdgeTriggered = thirdBtn.fallingEdgeTriggered();
 
         if (doorlockState == DoorlockState::Close) {
+            defaultDisplay();
             // 세 번째 버튼 누르면 수동 열기
             if (thirdBtnEdgeTriggered) doorlockOpen();
             // 두 번째 버튼을 누르면 비밀번호 입력 준비 (도어락의 슬라이더를 위로 올리는 효과)
@@ -295,12 +320,13 @@ int main()
             else if (joystickMovement.UpDown == JSLoc::Down) inputMinus();
         }
         else if (doorlockState == DoorlockState::Open) {
+            defaultDisplay();
             // 세 번째 버튼 누르면 수동 닫기
             if (thirdBtnEdgeTriggered) doorlockClose();
         }
         
         fflush(stdout);
-        ThisThread::sleep_for(10ms);
+        ThisThread::sleep_for(100ms);
     }
 }
 
