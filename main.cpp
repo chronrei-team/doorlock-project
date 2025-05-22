@@ -5,6 +5,8 @@
 #include "password_manager.cpp"
 #include "buzzer_class.cpp"
 #include "DHT22.h"
+#include "oled.cpp"
+#include "buzzer_class.cpp"
 #include <cstdio>
 
 #define ACTIVE_LOW 0
@@ -98,9 +100,7 @@ void doorlockClose() {
     });
 
     // 닫히는 소리 추가
-    Note melody[] = { Note::Note_C, Note::Note_a, Note::Note_f };
-    int durations[] = { 300, 300, 300 };
-    playSounds(melody, durations, 3);
+    buzzer.closeSound(&event);
     
 }
 
@@ -113,6 +113,8 @@ void doorlockOpen() {
 
     // 3초간 역회전 후 멈춤
     event.call_in(DOORLOCK_DURATION, [] {
+        printf("3초뒤 닫힘");
+
         if (doorlookActionCompleted()) {
             motor.stop();
             doorlockState = DoorlockState::Open;
@@ -120,9 +122,9 @@ void doorlockOpen() {
     });
 
     // 열리는 소리 추가
-    Note melody[] = { Note::Note_e, Note::Note_g, Note::Note_C };
-    int durations[] = { 300, 300, 300 };
-    playSounds(melody, durations, 3);
+    buzzer.openSound(&event);
+
+    printf("모터 동작 여부");
     
     // 30초뒤 자동 닫힘
     autoCloseTimer.reset();
@@ -139,6 +141,8 @@ void doorlockSliderOpen() {
     passwordManager.resetInput();
     passwordManager.resetCursor();
     printf("슬라이더 오픈\r\n");
+    // 부저
+    buzzer.play(Note::Note_c, 300, &event);
     // oled 제어
 }
 
@@ -147,7 +151,8 @@ void doorlockSliderClose() {
     passwordManager.resetInput();
     passwordManager.resetCursor();
     printf("슬라이더 클로즈\r\n");
-
+    // 부저
+    buzzer.play(Note::Note_c, 300, &event);
     // oled 제어
 }
 
@@ -158,9 +163,7 @@ void authorization() {
         printf("비밀번호 통과\r\n");
         
         // 부저 소리 출력
-        Note melody[] = { Note::Note_g, Note::Note_C};
-        int durations[] = { 300, 300 };
-        playSounds(melody, durations, 2);
+        buzzer.passSuccSound(&event);
         // oled 제어
     }
     // 패스워드 불일치
@@ -168,9 +171,7 @@ void authorization() {
         printf("비밀번호 실패\r\n");
 
         // 부저 소리 출력
-        Note melody[] = { Note::Note_f, Note::Note_f};
-        int durations[] = { 300, 300 };
-        playSounds(melody, durations, 2);
+        buzzer.passFailSound(&event);
         // oled 제어
     }
 }
@@ -179,7 +180,7 @@ void cursorLeft() {
     int cursor = passwordManager.cursorLeft();
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
     // 단일음 출력
-    playSingleSound(Note::Note_e, 300);
+    buzzer.play(Note::Note_e, 300, &event);
     // oled
 }
 
@@ -188,7 +189,7 @@ void cursorRight() {
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
 
     // 단일음 출력
-    playSingleSound(Note::Note_e, 300);
+    buzzer.play(Note::Note_e, 300, &event);
     // oled
 }
 
@@ -197,7 +198,7 @@ void inputPlus() {
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
     // 단일음 출력
-    playSingleSound(Note::Note_g, 300);
+    buzzer.play(Note::Note_g, 300, &event);
     // oled
 }
 
@@ -206,7 +207,7 @@ void inputMinus() {
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
     // 단일음 출력
-    playSingleSound(Note::Note_g, 300);
+    buzzer.play(Note::Note_g, 300, &event);
     // oled
 }
 
