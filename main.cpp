@@ -14,7 +14,6 @@
 #define DOORLOCK_DURATION 3s
 #define AUTO_CLOSE_DURATION 30s
 
-
 // push button
 #define FIRST_BTN_PIN PA_14
 #define SECOND_BTN_PIN PB_7
@@ -42,6 +41,14 @@ Buzzer buzzer(BUZZER_PIN);
 #define DHT22_DATA_PIN  PB_2
 DHT22 dht22(DHT22_DATA_PIN);
 
+// led
+#define GREEN_LED_PIN       PA_13
+#define YELLOW_LED_PIN      PB_10
+#define RED_LED_PIN         PA_4
+DigitalOut greenLed(GREEN_LED_PIN);
+DigitalOut yellowLed(YELLOW_LED_PIN);
+DigitalOut redLed(RED_LED_PIN);
+
 //-----------------------------------------------
 
 
@@ -60,25 +67,6 @@ Timer autoCloseTimer;
 
 PasswordManager passwordManager;
 DoorlockState doorlockState = DoorlockState::Close;
-
-void playSounds(const Note* notes, const int* durations, size_t count, size_t index = 0) {
-    if (index >= count) return;
-
-    // 현재 음 재생
-    event.call([=] {
-        buzzer.play(notes[index], durations[index]);
-    });
-
-    // 다음 음 재생 예약 (음 길이 + 간격 고려)
-    int delay = durations[index] + 50; // 50ms 간격
-    event.call_in(std::chrono::milliseconds(delay), [=] {
-        playSounds(notes, durations, count, index + 1);
-    });
-}
-
-void playSingleSound(Note note, int duration) {
-    playSounds(&note, &duration, 1);
-}
 
 // oled
 DoorlockOled oled(&event);
@@ -106,12 +94,14 @@ void doorlockClose() {
 
     // 닫히는 소리 추가
     buzzer.closeSound(&event);
+    // led
+    greenLed = 1;
+    redLed = 0;
     
 }
 
 void doorlockOpen() {
     printf("도어락 오픈\r\n");
-
     doorlockState = DoorlockState::OpenAction;
     motor.backward();
     motorTimer.reset();
@@ -119,8 +109,6 @@ void doorlockOpen() {
 
     // 3초간 역회전 후 멈춤
     event.call_in(DOORLOCK_DURATION, [] {
-        printf("3초뒤 닫힘");
-
         if (doorlookActionCompleted()) {
             motor.stop();
             doorlockState = DoorlockState::Open;
@@ -129,8 +117,9 @@ void doorlockOpen() {
 
     // 열리는 소리 추가
     buzzer.openSound(&event);
-
-    printf("모터 동작 여부");
+    // led
+    greenLed = 1;
+    redLed = 0;
     
     // 30초뒤 자동 닫힘
     autoCloseTimer.reset();
@@ -150,6 +139,8 @@ void doorlockSliderOpen() {
     printf("슬라이더 오픈\r\n");
     // 부저
     buzzer.play(Note::Note_c, 300, &event);
+    // led
+    yellowLed = 1;
     // oled 제어
 }
 
@@ -160,6 +151,8 @@ void doorlockSliderClose() {
     printf("슬라이더 클로즈\r\n");
     // 부저
     buzzer.play(Note::Note_c, 300, &event);
+    // led
+    yellowLed = 0;
     // oled 제어
 }
 
@@ -245,6 +238,10 @@ void defaultDisplay() {
 }
 
 void setup() {
+    greenLed = 0; // 열린 상태 표시
+    yellowLed = 0; // on : 비밀번호 입력 모드 off : 일반 모드
+    redLed = 1; // 닫힌 상태 표시
+
     static Thread eventWorker;
     eventWorker.start(callback(&event, &EventQueue::dispatch_forever));
 
