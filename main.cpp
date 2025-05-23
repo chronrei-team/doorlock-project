@@ -71,6 +71,9 @@ DoorlockState doorlockState = DoorlockState::Close;
 // oled
 DoorlockOled oled(&event);
 
+float temperature = 0.0f;
+float humidity = 0.0f;
+
 bool doorlookActionCompleted() {
     printf("모터 시간 : %dms\r\n", (int)(motorTimer.elapsed_time().count() / 1000));
     return motorTimer.elapsed_time() > DOORLOCK_DURATION - 0.1s;
@@ -95,8 +98,8 @@ void doorlockClose() {
     // 닫히는 소리 추가
     buzzer.closeSound(&event);
     // led
-    greenLed = 1;
-    redLed = 0;
+    greenLed = 0;
+    redLed = 1;
     
 }
 
@@ -220,8 +223,8 @@ void inputMinus() {
 
 void getTempHumid() {
     if (dht22.sample()) {
-        float temperature = (float)dht22.getTemperature() / 10.0f; // 소수점 보정
-        float humidity = (float)dht22.getHumidity() / 10.0f;
+        temperature = (float)dht22.getTemperature() / 10.0f; // 소수점 보정
+        humidity = (float)dht22.getHumidity() / 10.0f;
         printf("[DHT22] 온도: %.1f°C, 습도: %.1f%%\r\n", temperature, humidity);
     } else {
         printf("[DHT22] 센서 측정 실패\r\n");
@@ -230,10 +233,10 @@ void getTempHumid() {
 
 void defaultDisplay() {
     if (doorlockState == DoorlockState::Close) {
-        oled.defaultDisplay(true, 25.5, 70);
+        oled.defaultDisplay(true, temperature, humidity);
     }
     else if (doorlockState == DoorlockState::Open) {
-        oled.defaultDisplay(false, 25.5, 70);
+        oled.defaultDisplay(false, temperature, humidity);
     }
 }
 
@@ -263,14 +266,8 @@ void setup() {
 
 
 void debug(JSEdge joystickMovement) {
-    if (firstBtn.fallingEdgeTriggered()) {
-        printf("첫 번째 버튼 눌러짐\r\n");
-        
-    } 
-    if (secondBtn.fallingEdgeTriggered()) {
-        printf("두 번째 버튼 눌러짐\r\n");
-        
-    } 
+    if (firstBtn.fallingEdgeTriggered()) printf("첫 번째 버튼 눌러짐\r\n");
+    if (secondBtn.fallingEdgeTriggered()) printf("두 번째 버튼 눌러짐\r\n");
     if (thirdBtn.fallingEdgeTriggered()) printf("세 번째 버튼 눌러짐\r\n");
 
     if (joystickMovement.LeftRight == JSLoc::Left) printf("조이스틱 왼쪽 움직임\r\n");

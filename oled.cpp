@@ -131,7 +131,7 @@ public:
         oled.display();
     }
 
-    void defaultDisplay(bool isClose, float temp, int humi) {
+    void defaultDisplay(bool isClose, float temp, float humi) {
         aniTimer.stop();
         aniTimer.reset();
         oled.clearDisplay();
@@ -162,7 +162,7 @@ public:
 
         oled.setTextSize(2);
         oled.setTextCursor(68, 36);
-        oled.printf("%d%%", humi);
+        oled.printf("%.1f%%", humi);
 
         oled.display();
     }
