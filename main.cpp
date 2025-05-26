@@ -165,9 +165,10 @@ void authorization() {
         passwordManager.resetCursor();
         passwordManager.resetInput();
         doorlockOpen();
+        yellowLed = 0;
         
         // 부저 소리 출력
-        buzzer.passSuccSound(&event);
+        //buzzer.passSuccSound(&event);
         // oled 제어
     }
     // 패스워드 불일치
