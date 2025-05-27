@@ -43,6 +43,12 @@ private:
         oled.setTextCursor(19, 16);
     }
 
+    void display() {
+        eventQueue->call([this] {
+            oled.display();
+        });
+    }
+
     void passwordCursorBlack(int password, int cursor) {
         for (int i = 0; i < 4; i++) {
             if (cursor - 1 == i) {
@@ -52,12 +58,12 @@ private:
                 oled.printf("%d", (password / (int)pow(10, 3 - i)) % 10);
             }
         }
-        oled.display();
+        display();
     }
 
     void passwordAll(int password) {
         oled.printf("%04d", password);
-        oled.display();
+        display();
     }
     
 public:
@@ -97,7 +103,7 @@ public:
         }
 
         oled.clearDisplay();
-        oled.display();
+        display();
 
         if (aniCount == 1) {
             eventQueue->call_in(ani, [this, password, aniCount] {
@@ -118,7 +124,7 @@ public:
         oled.setTextSize(2);
         oled.setTextCursor(22, 16);
         oled.printf("closing");
-        oled.display();
+        display();
     }
 
     void openingDisplay() {
@@ -128,7 +134,7 @@ public:
         oled.setTextSize(2);
         oled.setTextCursor(22, 16);
         oled.printf("Opening");
-        oled.display();
+        display();
     }
 
     void defaultDisplay(bool isClose, float temp, int humi) {
@@ -164,7 +170,7 @@ public:
         oled.setTextCursor(68, 36);
         oled.printf("%d%%", humi);
 
-        oled.display();
+        display();
     }
 
 };
