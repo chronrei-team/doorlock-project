@@ -3,14 +3,16 @@
 #include "joystick.cpp"
 #include "motor.cpp"
 #include "password_manager.cpp"
+#include "buzzer_class.cpp"
+#include "DHT22.h"
 #include "oled.cpp"
+#include "buzzer_class.cpp"
 #include <cstdio>
 
 #define ACTIVE_LOW 0
 #define DEBOUNCING_DELAY 50ms
 #define DOORLOCK_DURATION 3s
 #define AUTO_CLOSE_DURATION 30s
-
 
 // push button
 #define FIRST_BTN_PIN PA_14
@@ -31,6 +33,23 @@ JoyStick joyStick(JS_X_PIN, JS_Y_PIN);
 #define MOTOR_A_ROTATE_PIN PC_8
 Motor motor(MOTOR_A_PWM_PIN, MOTOR_A_ROTATE_PIN);
 
+// buzzer
+#define BUZZER_PIN      PC_9
+Buzzer buzzer(BUZZER_PIN);
+
+// DHT22
+#define DHT22_DATA_PIN  PB_2
+DHT22 dht22(DHT22_DATA_PIN);
+
+// led
+#define GREEN_LED_PIN       PA_13
+#define YELLOW_LED_PIN      PB_10
+#define RED_LED_PIN         PA_4
+DigitalOut greenLed(GREEN_LED_PIN);
+DigitalOut yellowLed(YELLOW_LED_PIN);
+DigitalOut redLed(RED_LED_PIN);
+
+//-----------------------------------------------
 
 
 enum class DoorlockState {
@@ -51,6 +70,9 @@ DoorlockState doorlockState = DoorlockState::Close;
 
 // oled
 DoorlockOled oled(&event);
+
+float temperature = 0.0f;
+float humidity = 0.0f;
 
 bool doorlookActionCompleted() {
     printf("모터 시간 : %dms\r\n", (int)(motorTimer.elapsed_time().count() / 1000));
@@ -74,12 +96,15 @@ void doorlockClose() {
     });
 
     // 닫히는 소리 추가
+    buzzer.closeSound(&event);
+    // led
+    greenLed = 0;
+    redLed = 1;
     
 }
 
 void doorlockOpen() {
     printf("도어락 오픈\r\n");
-
     doorlockState = DoorlockState::OpenAction;
     motor.backward();
     motorTimer.reset();
@@ -94,6 +119,10 @@ void doorlockOpen() {
     });
 
     // 열리는 소리 추가
+    buzzer.openSound(&event);
+    // led
+    greenLed = 1;
+    redLed = 0;
     
     // 30초뒤 자동 닫힘
     autoCloseTimer.reset();
@@ -111,6 +140,11 @@ void doorlockSliderOpen() {
     passwordManager.resetCursor();
     oled.passwordDisplay(passwordManager.getInput(), passwordManager.getCursor(), true, false);
     printf("슬라이더 오픈\r\n");
+    // 부저
+    buzzer.play(Note::Note_c, 300, &event);
+    // led
+    yellowLed = 1;
+    // oled 제어
 }
 
 void doorlockSliderClose() {
@@ -118,6 +152,11 @@ void doorlockSliderClose() {
     passwordManager.resetInput();
     passwordManager.resetCursor();
     printf("슬라이더 클로즈\r\n");
+    // 부저
+    buzzer.play(Note::Note_c, 300, &event);
+    // led
+    yellowLed = 0;
+    // oled 제어
 }
 
 void authorization() {
@@ -126,15 +165,18 @@ void authorization() {
         passwordManager.resetCursor();
         passwordManager.resetInput();
         doorlockOpen();
+        yellowLed = 0;
         
         // 부저 소리 출력
+        //buzzer.passSuccSound(&event);
+        // oled 제어
     }
     // 패스워드 불일치
     else {
         doorlockState = DoorlockState::PasswordFail;
 
         // 부저 소리 출력
-
+        buzzer.passFailSound(&event);
         // oled 제어
         auto aniDelay = oled.passwordFailDisplay(passwordManager.getInput());
         event.call_in(aniDelay, doorlockSliderOpen);
@@ -144,9 +186,8 @@ void authorization() {
 void cursorLeft() {
     int cursor = passwordManager.cursorLeft();
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
-
-    // 소리
-
+    // 단일음 출력
+    buzzer.play(Note::Note_e, 300, &event);
     // oled
     oled.passwordDisplay(passwordManager.getInput(), cursor);
 }
@@ -155,7 +196,8 @@ void cursorRight() {
     int cursor = passwordManager.cursorRight();
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
 
-    // 소리
+    // 단일음 출력
+    buzzer.play(Note::Note_e, 300, &event);
     // oled
     oled.passwordDisplay(passwordManager.getInput(), cursor);
 }
@@ -164,7 +206,8 @@ void inputPlus() {
     int pw = passwordManager.inputPlus();
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
-    // 소리
+    // 단일음 출력
+    buzzer.play(Note::Note_g, 300, &event);
     // oled
     oled.passwordDisplay(pw, passwordManager.getCursor(), true, false);
 }
@@ -173,21 +216,36 @@ void inputMinus() {
     int pw = passwordManager.inputMinus();
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
-    // 소리
+    // 단일음 출력
+    buzzer.play(Note::Note_g, 300, &event);
     // oled
     oled.passwordDisplay(pw, passwordManager.getCursor(), true, false);
 }
 
+void getTempHumid() {
+    if (dht22.sample()) {
+        temperature = (float)dht22.getTemperature() / 10.0f; // 소수점 보정
+        humidity = (float)dht22.getHumidity() / 10.0f;
+        printf("[DHT22] 온도: %.1f°C, 습도: %.1f%%\r\n", temperature, humidity);
+    } else {
+        printf("[DHT22] 센서 측정 실패\r\n");
+    }
+}
+
 void defaultDisplay() {
     if (doorlockState == DoorlockState::Close) {
-        oled.defaultDisplay(true, 25.5, 70);
+        oled.defaultDisplay(true, temperature, humidity);
     }
     else if (doorlockState == DoorlockState::Open) {
-        oled.defaultDisplay(false, 25.5, 70);
+        oled.defaultDisplay(false, temperature, humidity);
     }
 }
 
 void setup() {
+    greenLed = 0; // 열린 상태 표시
+    yellowLed = 0; // on : 비밀번호 입력 모드 off : 일반 모드
+    redLed = 1; // 닫힌 상태 표시
+
     static Thread eventWorker;
     eventWorker.start(callback(&event, &EventQueue::dispatch_forever));
 
@@ -202,6 +260,7 @@ void setup() {
     // record joystick movement
     event.call_every(DEBOUNCING_DELAY, callback(&joyStick, &JoyStick::detectLocation));
 
+    event.call_every(1s, getTempHumid);
     // sensor init delay
     ThisThread::sleep_for(1s);
 }
