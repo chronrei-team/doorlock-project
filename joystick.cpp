@@ -4,8 +4,8 @@
 #include "mbed.h"
 
 namespace {
-    #define JS_CENTER_LOWER 48
-    #define JS_CENTER_UPPER 58
+    #define JS_CENTER_LOWER 5
+    #define JS_CENTER_UPPER 95
 }
 
 enum class JSLoc {
