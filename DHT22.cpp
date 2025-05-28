@@ -2,11 +2,12 @@
 
 #define timeout 200
 
-DHT22::DHT22(PinName pin) {
+DHT22::DHT22(PinName pin, EventQueue *_event) {
     _data_pin = pin;
     DigitalInOut dht(_data_pin);
     dht.output();
     dht.write(1);
+    event = _event;
 }
 
 int DHT22::getTemperature() {
@@ -15,6 +16,14 @@ int DHT22::getTemperature() {
 
 int DHT22::getHumidity() {
     return _humidity;
+}
+
+void DHT22::sampleAlway() {
+    if (taskId == -1) taskId = event->call_every(1s, callback(this, &DHT22::sample));
+}
+
+void DHT22::sampleStop() {
+    if (taskId != -1) event->cancel(taskId);
 }
 
 bool DHT22::sample() {

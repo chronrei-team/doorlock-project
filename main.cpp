@@ -37,10 +37,6 @@ Motor motor(MOTOR_A_PWM_PIN, MOTOR_A_ROTATE_PIN);
 #define BUZZER_PIN      PC_9
 Buzzer buzzer(BUZZER_PIN);
 
-// DHT22
-#define DHT22_DATA_PIN  PB_2
-DHT22 dht22(DHT22_DATA_PIN);
-
 // led
 #define GREEN_LED_PIN       PA_13
 #define YELLOW_LED_PIN      PB_10
@@ -71,8 +67,9 @@ DoorlockState doorlockState = DoorlockState::Close;
 // oled
 DoorlockOled oled(&event);
 
-float temperature = 0.0f;
-float humidity = 0.0f;
+// DHT22
+#define DHT22_DATA_PIN  PB_2
+DHT22 dht22(DHT22_DATA_PIN, &event);
 
 bool doorlookActionCompleted() {
     printf("모터 시간 : %dms\r\n", (int)(motorTimer.elapsed_time().count() / 1000));
@@ -139,6 +136,7 @@ void doorlockSliderOpen() {
     passwordManager.resetInput();
     passwordManager.resetCursor();
     oled.passwordDisplay(passwordManager.getInput(), passwordManager.getCursor(), true, false);
+    dht22.sampleStop();
     printf("슬라이더 오픈\r\n");
     // 부저
     buzzer.play(Note::Note_c, 300, &event);
@@ -151,6 +149,7 @@ void doorlockSliderClose() {
     doorlockState = DoorlockState::Close;
     passwordManager.resetInput();
     passwordManager.resetCursor();
+    dht22.sampleAlway();
     printf("슬라이더 클로즈\r\n");
     // 부저
     buzzer.play(Note::Note_c, 300, &event);
@@ -165,6 +164,7 @@ void authorization() {
         passwordManager.resetCursor();
         passwordManager.resetInput();
         doorlockOpen();
+        dht22.sampleAlway();
         yellowLed = 0;
     }
     // 패스워드 불일치
@@ -218,18 +218,11 @@ void inputMinus() {
     oled.passwordDisplay(pw, passwordManager.getCursor(), true, false);
 }
 
-void getTempHumid() {
-    if (dht22.sample()) {
-        temperature = (float)dht22.getTemperature() / 10.0f; // 소수점 보정
-        humidity = (float)dht22.getHumidity() / 10.0f;
-        printf("[DHT22] 온도: %.1f°C, 습도: %.1f%%\r\n", temperature, humidity);
-    } else {
-        printf("[DHT22] 센서 측정 실패\r\n");
-    }
-}
 
 void defaultDisplay() {
-    oled.defaultDisplay(doorlockState == DoorlockState::Close, temperature, humidity);
+    oled.defaultDisplay(doorlockState == DoorlockState::Close, 
+        (float)dht22.getTemperature() / 10.0f, 
+        (float)dht22.getHumidity() / 10.0f);
 }
 
 void setup() {
@@ -251,7 +244,6 @@ void setup() {
     // record joystick movement
     event.call_every(DEBOUNCING_DELAY, callback(&joyStick, &JoyStick::detectLocation));
 
-    event.call_every(1s, getTempHumid);
     // sensor init delay
     ThisThread::sleep_for(1s);
 }
