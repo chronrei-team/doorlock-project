@@ -166,10 +166,6 @@ void authorization() {
         passwordManager.resetInput();
         doorlockOpen();
         yellowLed = 0;
-        
-        // 부저 소리 출력
-        //buzzer.passSuccSound(&event);
-        // oled 제어
     }
     // 패스워드 불일치
     else {
@@ -187,7 +183,7 @@ void cursorLeft() {
     int cursor = passwordManager.cursorLeft();
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
     // 단일음 출력
-    // buzzer.play(Note::Note_e, 300, &event);
+    buzzer.play(Note::Note_e, 100, &event);
     // oled
     oled.passwordDisplay(passwordManager.getInput(), cursor);
 }
@@ -197,7 +193,7 @@ void cursorRight() {
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
 
     // 단일음 출력
-    // buzzer.play(Note::Note_e, 300, &event);
+    buzzer.play(Note::Note_e, 100, &event);
     // oled
     oled.passwordDisplay(passwordManager.getInput(), cursor);
 }
@@ -207,7 +203,7 @@ void inputPlus() {
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
     // 단일음 출력
-    // buzzer.play(Note::Note_g, 300, &event);
+    buzzer.play(Note::Note_g, 100, &event);
     // oled
     oled.passwordDisplay(pw, passwordManager.getCursor(), true, false);
 }
@@ -217,7 +213,7 @@ void inputMinus() {
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
     // 단일음 출력
-    // buzzer.play(Note::Note_g, 300, &event);
+    buzzer.play(Note::Note_g, 100, &event);
     // oled
     oled.passwordDisplay(pw, passwordManager.getCursor(), true, false);
 }
@@ -316,7 +312,7 @@ int main()
         }
         
         fflush(stdout);
-        ThisThread::sleep_for(100ms);
+        ThisThread::sleep_for(50ms);
     }
 }
 
