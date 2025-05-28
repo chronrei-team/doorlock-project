@@ -145,7 +145,7 @@ public:
         oled.setTextSize(1);
 
         oled.setTextCursor(20, 0);
-        oled.printf("Secure");
+        oled.printf("Close");
 
         oled.setTextCursor(68, 0);
         oled.printf("Temp/Humi");

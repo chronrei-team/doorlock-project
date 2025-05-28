@@ -98,8 +98,8 @@ void doorlockClose() {
     // 닫히는 소리 추가
     buzzer.closeSound(&event);
     // led
-    greenLed = 0;
-    redLed = 1;
+    greenLed = 1;
+    redLed = 0;
     
 }
 
@@ -121,8 +121,8 @@ void doorlockOpen() {
     // 열리는 소리 추가
     buzzer.openSound(&event);
     // led
-    greenLed = 1;
-    redLed = 0;
+    greenLed = 0;
+    redLed = 1;
     
     // 30초뒤 자동 닫힘
     autoCloseTimer.reset();
@@ -187,7 +187,7 @@ void cursorLeft() {
     int cursor = passwordManager.cursorLeft();
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
     // 단일음 출력
-    buzzer.play(Note::Note_e, 300, &event);
+    // buzzer.play(Note::Note_e, 300, &event);
     // oled
     oled.passwordDisplay(passwordManager.getInput(), cursor);
 }
@@ -197,7 +197,7 @@ void cursorRight() {
     printf("cursor: %d   pw: %d\r\n", cursor, passwordManager.getInput());
 
     // 단일음 출력
-    buzzer.play(Note::Note_e, 300, &event);
+    // buzzer.play(Note::Note_e, 300, &event);
     // oled
     oled.passwordDisplay(passwordManager.getInput(), cursor);
 }
@@ -207,7 +207,7 @@ void inputPlus() {
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
     // 단일음 출력
-    buzzer.play(Note::Note_g, 300, &event);
+    // buzzer.play(Note::Note_g, 300, &event);
     // oled
     oled.passwordDisplay(pw, passwordManager.getCursor(), true, false);
 }
@@ -217,7 +217,7 @@ void inputMinus() {
     printf("cursor: %d   pw: %d\r\n", passwordManager.getCursor(), pw);
 
     // 단일음 출력
-    buzzer.play(Note::Note_g, 300, &event);
+    // buzzer.play(Note::Note_g, 300, &event);
     // oled
     oled.passwordDisplay(pw, passwordManager.getCursor(), true, false);
 }
@@ -233,18 +233,13 @@ void getTempHumid() {
 }
 
 void defaultDisplay() {
-    if (doorlockState == DoorlockState::Close) {
-        oled.defaultDisplay(true, temperature, humidity);
-    }
-    else if (doorlockState == DoorlockState::Open) {
-        oled.defaultDisplay(false, temperature, humidity);
-    }
+    oled.defaultDisplay(doorlockState == DoorlockState::Close, temperature, humidity);
 }
 
 void setup() {
-    greenLed = 0; // 열린 상태 표시
+    greenLed = 1; // 닫힘 상태 표시
     yellowLed = 0; // on : 비밀번호 입력 모드 off : 일반 모드
-    redLed = 1; // 닫힌 상태 표시
+    redLed = 0; // 열림 상태 표시
 
     static Thread eventWorker;
     eventWorker.start(callback(&event, &EventQueue::dispatch_forever));
