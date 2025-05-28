@@ -236,6 +236,8 @@ void setup() {
     motorTimer.start();
     autoCloseTimer.start();
 
+    dht22.sampleAlway();
+
     // record button falling edge
     event.call_every(DEBOUNCING_DELAY, callback(&firstBtn, &PushButton::detectFallingEdge));
     event.call_every(DEBOUNCING_DELAY, callback(&secondBtn, &PushButton::detectFallingEdge));
