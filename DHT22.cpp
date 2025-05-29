@@ -23,7 +23,10 @@ void DHT22::sampleAlway() {
 }
 
 void DHT22::sampleStop() {
-    if (taskId != -1) event->cancel(taskId);
+    if (taskId != -1) {
+        event->cancel(taskId);
+        taskId = -1;
+    }
 }
 
 bool DHT22::sample() {
