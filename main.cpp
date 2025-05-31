@@ -220,9 +220,17 @@ void inputMinus() {
 
 
 void defaultDisplay() {
-    oled.defaultDisplay(doorlockState == DoorlockState::Close, 
-        (float)dht22.getTemperature() / 10.0f, 
-        (float)dht22.getHumidity() / 10.0f);
+    static int temp = 0;
+    static int humi = 0;
+
+    if (dht22.getTemperature() != temp || dht22.getHumidity() != humi) {
+        temp = dht22.getTemperature();
+        humi = dht22.getHumidity();
+        
+        oled.defaultDisplay(doorlockState == DoorlockState::Close, 
+            temp / 10.0f, 
+            humi / 10.0f);
+    }
 }
 
 void setup() {
