@@ -6,6 +6,7 @@
 #include "buzzer_class.cpp"
 #include "DHT22.h"
 #include "oled.cpp"
+#include "bluetooth.cpp"
 #include "buzzer_class.cpp"
 #include <cstdio>
 
@@ -13,6 +14,9 @@
 #define DEBOUNCING_DELAY 50ms
 #define DOORLOCK_DURATION 3s
 #define AUTO_CLOSE_DURATION 30s
+
+// bluetooth
+DoorlockBluetooth bluetooth;
 
 // push button
 #define FIRST_BTN_PIN PA_14
@@ -241,6 +245,9 @@ void setup() {
     static Thread eventWorker;
     eventWorker.start(callback(&event, &EventQueue::dispatch_forever));
 
+    static Thread bluetoothWorker;
+    bluetoothWorker.start(callback(&bluetooth, &DoorlockBluetooth::readAlway));
+
     motorTimer.start();
     autoCloseTimer.start();
 
@@ -285,17 +292,18 @@ int main()
         bool firstBtnEdgeTriggered = firstBtn.fallingEdgeTriggered();
         bool secondBtnEdgeTriggered = secondBtn.fallingEdgeTriggered();
         bool thirdBtnEdgeTriggered = thirdBtn.fallingEdgeTriggered();
+        BluetoothEvent bluetoothEvent = bluetooth.getEvent();
 
         if (doorlockState == DoorlockState::Close) {
             defaultDisplay();
-            // 세 번째 버튼 누르면 수동 열기
-            if (thirdBtnEdgeTriggered) doorlockOpen();
+            // 세 번째 버튼 누르면 또는 블루투스 이벤트 받으면 수동 열기
+            if (thirdBtnEdgeTriggered || bluetoothEvent == BluetoothEvent::Open) doorlockOpen();
             // 두 번째 버튼을 누르면 비밀번호 입력 준비 (도어락의 슬라이더를 위로 올리는 효과)
             else if (secondBtnEdgeTriggered) doorlockSliderOpen();
         }
         else if (doorlockState == DoorlockState::InputOnClose) {
-            // 세 번째 버튼 누르면 수동 열기
-            if (thirdBtnEdgeTriggered) doorlockOpen();
+            // 세 번째 버튼 누르면 또는 블루투스 이벤트 받으면 수동 열기
+            if (thirdBtnEdgeTriggered || bluetoothEvent == BluetoothEvent::Open) doorlockOpen();
             // 두 번째 버튼 누르면 비밀번호 입력 취소 (도어락의 슬라이더를 닫는 효과)
             else if (secondBtnEdgeTriggered) doorlockSliderClose();
             // 첫 번째 버튼 누르면 비밀번호 입력 확인
@@ -309,8 +317,8 @@ int main()
         }
         else if (doorlockState == DoorlockState::Open) {
             defaultDisplay();
-            // 세 번째 버튼 누르면 수동 닫기
-            if (thirdBtnEdgeTriggered) doorlockClose();
+            // 세 번째 버튼 누르면 블루투스 이벤트 받으면 수동 닫기
+            if (thirdBtnEdgeTriggered || bluetoothEvent == BluetoothEvent::Close) doorlockClose();
         }
         
         fflush(stdout);
