@@ -124,6 +124,7 @@ void doorlockOpen() {
     // led
     greenLed = 0;
     redLed = 1;
+    yellowLed = 0;
     
     // 30초뒤 자동 닫힘
     autoCloseTimer.reset();
