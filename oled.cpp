@@ -3,6 +3,7 @@
 
 #include "mbed.h"
 #include "Adafruit_SSD1306.h"
+#include "DoorlockState.h"
 #include <chrono>
 #include <cstdio>
 #include <string>
@@ -27,7 +28,6 @@ private:
     Adafruit_SSD1306_I2c oled;
 
     EventQueue *eventQueue;
-    bool passwordMode = false;
 
     const chrono::milliseconds ani = 500ms;
     Timer aniTimer;
@@ -72,8 +72,9 @@ public:
         aniTimer.start();
     }
 
+
     void passwordDisplay(int password, int cursor, bool firstCall = true, bool cursorBlack = true) {
-        if (!firstCall && aniTimer.elapsed_time() <= ani - 10ms) return;
+        if (doorlockState != DoorlockState::InputOnClose || (!firstCall && aniTimer.elapsed_time() <= ani - 10ms)) return;
         aniTimer.stop();
 
         passwordDisplaySetting();
@@ -83,7 +84,7 @@ public:
         aniTimer.reset();
         aniTimer.start();
         eventQueue->call_in(ani, [this, password, cursor, cursorBlack]() {
-            if (aniTimer.elapsed_time() <= ani - 10ms) return;
+            if (doorlockState != DoorlockState::InputOnClose || aniTimer.elapsed_time() <= ani - 10ms) return;
 
             passwordDisplaySetting();
             if (cursorBlack) passwordAll(password);

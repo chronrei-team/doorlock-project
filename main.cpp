@@ -8,6 +8,7 @@
 #include "oled.cpp"
 #include "bluetooth.cpp"
 #include "buzzer_class.cpp"
+#include "DoorlockState.h"
 #include <cstdio>
 
 #define ACTIVE_LOW 0
@@ -52,21 +53,12 @@ DigitalOut redLed(RED_LED_PIN);
 //-----------------------------------------------
 
 
-enum class DoorlockState {
-    Open, // 열림
-    Close, // 닫힘
-    InputOnClose, // 비밀번호 입력
-    PasswordFail, // 비밀번호 실패
-    OpenAction, // 열리는 중
-    CloseAction, // 닫히는 중
-};
 
 EventQueue event(EVENTS_EVENT_SIZE * 32);
 Timer motorTimer;
 Timer autoCloseTimer;
 
 PasswordManager passwordManager;
-DoorlockState doorlockState = DoorlockState::Close;
 
 // oled
 DoorlockOled oled(&event);
@@ -92,6 +84,7 @@ void doorlockClose() {
     event.call_in(DOORLOCK_DURATION, [] {
         if (doorlookActionCompleted()) {
             motor.stop();
+            dht22.sampleAlway();
             doorlockState = DoorlockState::Close;
         }
     });
@@ -115,6 +108,7 @@ void doorlockOpen() {
     event.call_in(DOORLOCK_DURATION, [] {
         if (doorlookActionCompleted()) {
             motor.stop();
+            dht22.sampleAlway();
             doorlockState = DoorlockState::Open;
         }
     });
@@ -228,14 +222,12 @@ void defaultDisplay() {
     static int temp = 0;
     static int humi = 0;
 
-    if (dht22.getTemperature() != temp || dht22.getHumidity() != humi) {
-        temp = dht22.getTemperature();
-        humi = dht22.getHumidity();
-        
-        oled.defaultDisplay(doorlockState == DoorlockState::Close, 
-            temp / 10.0f, 
-            humi / 10.0f);
-    }
+    temp = dht22.getTemperature();
+    humi = dht22.getHumidity();
+    
+    oled.defaultDisplay(doorlockState == DoorlockState::Close, 
+        temp / 10.0f, 
+        humi / 10.0f);
 }
 
 void setup() {
